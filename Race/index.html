@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Mini Racer</title>
+  <meta name="theme-color" content="#111111" />
+  <!-- PWA (ספארי באייפון: מסך מלא כשמוסיפים למסך הבית) -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23111'/%3E%3Cpath d='M10 40h44l-3 8H13z' fill='%23aaa'/%3E%3Crect x='20' y='20' width='24' height='14' rx='3' fill='%23e33'/%3E%3Ccircle cx='22' cy='50' r='6' fill='%23fff'/%3E%3Ccircle cx='42' cy='50' r='6' fill='%23fff'/%3E%3C/svg%3E">
+  <style>
+    html, body { height: 100%; margin: 0; background:#0d0d0f; color:#fff; font-family: system-ui, Arial, sans-serif; }
+    #wrap { display:flex; flex-direction:column; height:100%; }
+    header { display:flex; align-items:center; gap:.5rem; padding: .6rem .8rem; background:#111; position:sticky; top:0; z-index:5; }
+    header h1 { font-size:1rem; margin:0; font-weight:600; letter-spacing:.3px; }
+    header .spacer { flex:1; }
+    button, .btn {
+      border:1px solid #2a2a2a; background:#1a1a1a; color:#fff; padding:.5rem .8rem; border-radius:.6rem;
+      font-weight:600; font-size:.95rem; touch-action:manipulation;
+    }
+    button:active { transform: translateY(1px); }
+    #gameArea { position:relative; flex:1; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    #canvas { width: min(100vw, 700px); height: min(100vh - 140px, 110vw); max-height: calc(100vh - 130px); background:#17181b; border-radius: 12px; box-shadow: 0 8px 40px rgba(0,0,0,.6); touch-action:none; }
+    /* HUD */
+    #hud { position:absolute; top:8px; inset-inline:8px; display:flex; gap:8px; align-items:center; justify-content:space-between; pointer-events:none; }
+    .pill { background:rgba(0,0,0,.45); backdrop-filter: blur(6px); border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:.35rem .6rem; font-weight:700; font-variant-numeric: tabular-nums; }
+    /* מובייל: כפתורי שליטה */
+    #controls { position:absolute; bottom:10px; left:0; right:0; display:flex; justify-content:space-between; gap:10px; padding:0 10px; }
+    .ctl { pointer-events:all; user-select:none; width: 28vw; max-width: 150px; aspect-ratio:1/1; border-radius: 50%; border:1px solid #2a2a2a; background: radial-gradient(transparent 40%, rgba(255,255,255,.08)); }
+    .go { width: 30vw; max-width: 180px; aspect-ratio: 2.2/1; border-radius: 999px; }
+    @media (min-width: 900px) {
+      #canvas { width: 700px; height: 1000px; }
+      #controls { display:none; }
+    }
+    /* הודעות */
+    #msg { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px; pointer-events:none; }
+    #msg.hidden { display:none; }
+    .kbd { font-weight:700; border:1px solid #2a2a2a; background:#111; padding:.2rem .4rem; border-radius:.4rem; }
+    a.tip { color:#9ad1ff; text-decoration:none; border-bottom:1px dotted #9ad1ff; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <header>
+      <h1>🏁 Mini Racer</h1>
+      <div class="spacer"></div>
+      <button id="btnFS" aria-label="מסך מלא">⤢ מסך מלא</button>
+      <button id="btnInstall" style="display:none">⬇ התקנה</button>
+      <button id="btnMute" aria-label="השתק">🔈</button>
+    </header>
+
+    <div id="gameArea">
+      <canvas id="canvas" width="420" height="700"></canvas>
+
+      <div id="hud">
+        <div class="pill" id="score">נק׳ 0000</div>
+        <div class="pill" id="speed">מהירות 0</div>
+      </div>
+
+      <div id="msg">
+        <div style="text-align:center;opacity:.95">
+          <div style="font-size:28px; font-weight:800; letter-spacing:.5px">החלק להתחיל 🚗</div>
+          <div style="margin-top:8px;opacity:.85">
+            במחשב: <span class="kbd">←</span> <span class="kbd">→</span> ו-<span class="kbd">↑</span>.<br>
+            בנייד: כפתורי מגע למטה.
+          </div>
+          <div style="margin-top:10px;opacity:.8;">
+            רוצה ממש מסך מלא? לחץ "מסך מלא" למעלה<br>
+            או <a class="tip" href="#" id="a2hsTip">הוסף למסך הבית</a> לאפליקציה אמיתית.
+          </div>
+        </div>
+      </div>
+
+      <!-- כפתורי מובייל -->
+      <div id="controls">
+        <button class="ctl" id="left">⬅</button>
+        <button class="ctl go" id="go">גז</button>
+        <button class="ctl" id="right">➡</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+  <script>
+    // PWA + התקנה
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const btn = document.getElementById('btnInstall');
+      btn.style.display = 'inline-block';
+      btn.onclick = async () => {
+        btn.style.display = 'none';
+        await deferredPrompt.prompt();
+        deferredPrompt = null;
+      };
+    });
+
+    // רשום Service Worker עבור קאש אופליין
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js');
+      });
+    }
+
+    // מסך מלא (כולל iOS fallbacks)
+    const btnFS = document.getElementById('btnFS');
+    btnFS.addEventListener('click', async () => {
+      const el = document.documentElement;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+      const exit = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+      try {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+          await req.call(el);
+        } else {
+          await exit.call(document);
+        }
+      } catch (e) {
+        alert('אם זה באייפון ולא נכנס למסך מלא, אפשר להוסיף למסך הבית דרך שיתוף → הוסף למסך הבית.');
+      }
+    });
+
+    // טיפ "הוסף למסך הבית"
+    document.getElementById('a2hsTip').addEventListener('click', (e) => {
+      e.preventDefault();
+      alert('באייפון: כפתור שיתוף בספארי → "הוסף למסך הבית" להפעלה במסך מלא.');
+    });
+
+    // השתקה (אין סאונד כרגע, זה מקום להרחבה)
+    const btnMute = document.getElementById('btnMute');
+    let muted = true;
+    btnMute.textContent = muted ? '🔇' : '🔈';
+    btnMute.onclick = () => {
+      muted = !muted;
+      btnMute.textContent = muted ? '🔇' : '🔈';
+    };
+  </script>
+</body>
+</html>
