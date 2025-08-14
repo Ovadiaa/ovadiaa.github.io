@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>Rover — עולם פתוח פרוצדורלי</title>
+<meta name="theme-color" content="#111111">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  html,body{height:100%;margin:0;background:#08101a;color:#fff;font-family:system-ui,Arial}
+  #topbar{position:fixed;inset:8px 8px auto 8px;display:flex;gap:8px;z-index:50}
+  button{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.06);color:#fff;padding:.5rem .7rem;border-radius:8px;font-weight:700}
+  #overlay{position:fixed;left:8px;right:8px;bottom:8px;display:flex;justify-content:space-between;gap:8px;z-index:50}
+  .pill{background:rgba(0,0,0,0.45);padding:.45rem .7rem;border-radius:12px;font-weight:800;backdrop-filter:blur(6px)}
+  #instructions{position:fixed;left:50%;top:12%;transform:translateX(-50%);background:rgba(0,0,0,0.5);padding:12px;border-radius:10px;z-index:50}
+  a{color:#9ad1ff}
+  canvas{display:block}
+</style>
+</head>
+<body>
+  <div id="topbar">
+    <button id="btnFS">⤢ מסך מלא</button>
+    <button id="btnInstall" style="display:none">⬇ התקן</button>
+    <button id="btnReset">🔁 ריסטארט</button>
+  </div>
+  <div id="overlay">
+    <div class="pill" id="speed">מהירות: 0</div>
+    <div class="pill" id="coords">x:0 z:0</div>
+    <div class="pill" id="seed">seed: -</div>
+  </div>
+  <div id="instructions">
+    <div style="text-align:center;font-weight:800">Rover — נהיגה בעולם פתוח פרוצדורלי</div>
+    <div style="margin-top:6px">מקלדת: W/A/S/D או חצים. בנייד: כפתורים מגע. תנסה להתקדם — העולם ייווצר תוך כדי.</div>
+  </div>
+  <canvas id="c"></canvas>
+  <script type="module" src="main.js"></script>
+  <script>
+    // PWA install prompt handling
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('btnInstall').style.display = 'inline-block';
+      document.getElementById('btnInstall').onclick = async () => {
+        deferredPrompt.prompt();
+        deferredPrompt = null;
+        document.getElementById('btnInstall').style.display='none';
+      };
+    });
+    // Fullscreen
+    document.getElementById('btnFS').addEventListener('click', async ()=>{
+      const el = document.documentElement;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      try {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) await req.call(el);
+        else await exit.call(document);
+      } catch(e){ alert('ב-iPhone השתמש: שיתוף → הוסף למסך הבית'); }
+    });
+    // service worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', ()=> navigator.serviceWorker.register('./sw.js'));
+    }
+  </script>
+</body>
+</html>
